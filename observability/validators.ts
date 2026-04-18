@@ -35,7 +35,7 @@ export function validateAll(records: PipelineRecord[]): ValidatorReport {
     if (r.research) {
       const urls = [
         r.research.pain_thesis_source_url,
-        r.research.stack_maturity_source_url,
+        r.research.workforce_planning_maturity_source_url,
         r.research.reference_fact_source_url,
       ];
       for (const u of urls) {

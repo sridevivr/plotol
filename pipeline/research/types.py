@@ -7,11 +7,26 @@ from typing import Literal, Optional
 from pydantic import BaseModel, Field, HttpUrl
 
 
-StackMaturity = Literal["greenfield", "piecemeal", "maturing", "mature"]
+WorkforcePlanningMaturity = Literal[
+    "manual",
+    "spreadsheets",
+    "point_tools",
+    "enterprise_wfm",
+    "in_house_science",
+]
+Sector = Literal["retail_ecommerce", "manufacturing", "hospitality", "other"]
+RevenueBand = Literal["under_500m", "500m_1b", "1b_5b", "5b_plus"]
+DataAnalyticsInvestment = Literal["none", "some", "mature"]
 
 
 class JobPosting(BaseModel):
-    source: Literal["greenhouse", "lever"]
+    """Universal seed shape. Used for Greenhouse/Lever postings and EDGAR filings.
+
+    For EDGAR, `role_title` holds the filing headline (e.g. "10-K — new store
+    openings") and `role_location` may be empty.
+    """
+
+    source: Literal["greenhouse", "lever", "edgar"]
     source_id: str
     source_url: HttpUrl
     company_name: str
@@ -28,19 +43,27 @@ class Firmographics(BaseModel):
     industry: Optional[str] = None
     headcount: Optional[int] = None
     headcount_band: Optional[str] = None
-    funding_stage: Optional[str] = None
-    last_funding_at: Optional[str] = None
     hq_country: Optional[str] = None
+
+    # Labor-intel ICP attributes.
+    location_count: Optional[int] = None
+    revenue_band: Optional[RevenueBand] = None
+    sector: Optional[Sector] = None
+    data_analytics_investment: Optional[DataAnalyticsInvestment] = None
+
     source: str
     source_url: Optional[HttpUrl] = None
 
 
-class TechStack(BaseModel):
+class LaborTechStack(BaseModel):
+    """Workforce tooling detected for the target. Replaces the data-stack
+    fields used for the prior ICP."""
+
     domain: str
-    warehouse: Optional[str] = None
-    bi: Optional[str] = None
-    cdp: Optional[str] = None
-    reverse_etl: Optional[str] = None
+    wfm: Optional[str] = None  # Kronos/UKG, Legion, Deputy
+    hris: Optional[str] = None  # Workday, ADP, UKG
+    scheduling: Optional[str] = None
+    time_attendance: Optional[str] = None
     others: list[str] = Field(default_factory=list)
     source: str
     source_url: Optional[HttpUrl] = None
@@ -63,8 +86,8 @@ class ResearchBrief(BaseModel):
 
     pain_thesis: str
     pain_thesis_source_url: HttpUrl
-    stack_maturity: StackMaturity
-    stack_maturity_source_url: HttpUrl
+    workforce_planning_maturity: WorkforcePlanningMaturity
+    workforce_planning_maturity_source_url: HttpUrl
     reference_fact: str
     reference_fact_source_url: HttpUrl
 
@@ -81,7 +104,7 @@ class PipelineRecord(BaseModel):
     id: str
     posting: JobPosting
     firmographics: Optional[Firmographics] = None
-    tech_stack: Optional[TechStack] = None
+    labor_tech_stack: Optional[LaborTechStack] = None
     person: Optional[Person] = None
     research: Optional[ResearchBrief] = None
     draft: Optional[Draft] = None

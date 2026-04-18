@@ -12,71 +12,76 @@ const WEIGHTS = {
   signal_strength_max: 30,
 } as const;
 
-const ICP_HEADCOUNT_BANDS_OK = new Set(["51-200", "201-500"]);
-const ICP_FUNDING_OK = new Set(["series-a", "series-b"]);
+const ICP_SECTORS = new Set(["retail_ecommerce", "manufacturing", "hospitality"]);
+const ICP_REVENUE_BANDS = new Set(["500m_1b", "1b_5b", "5b_plus"]);
+const NA_COUNTRIES = new Set(["US", "USA", "United States", "CA", "Canada", "MX", "Mexico"]);
+const LOW_MATURITY = new Set(["manual", "spreadsheets"]);
+const EXPANSION_RE = /\b(new\s+(store|stores|site|sites|facility|facilities|plant|plants|property|properties|location|locations)|expansion|opening|openings)\b/i;
 
 export function scoreRecord(record: PipelineRecord): ScoreBreakdown {
   const notes: string[] = [];
 
-  // --- ICP fit ---
+  // --- ICP fit (0–40) ---
   let icp = 0;
   const f = record.firmographics;
-  if (f) {
-    if (f.industry?.toLowerCase().includes("software")) {
-      icp += 15;
-      notes.push("ICP +15: software industry");
-    }
-    if (f.headcount_band && ICP_HEADCOUNT_BANDS_OK.has(f.headcount_band)) {
-      icp += 15;
-      notes.push(`ICP +15: headcount band ${f.headcount_band}`);
-    }
-    if (f.funding_stage && ICP_FUNDING_OK.has(f.funding_stage)) {
-      icp += 10;
-      notes.push(`ICP +10: stage ${f.funding_stage}`);
-    }
-  } else {
+  if (f?.sector && ICP_SECTORS.has(f.sector)) {
+    icp += 15;
+    notes.push(`ICP +15: sector ${f.sector}`);
+  }
+  if (typeof f?.location_count === "number" && f.location_count >= 20) {
+    icp += 15;
+    notes.push(`ICP +15: ${f.location_count} locations`);
+  }
+  if (f?.revenue_band && ICP_REVENUE_BANDS.has(f.revenue_band)) {
+    icp += 5;
+    notes.push(`ICP +5: revenue ${f.revenue_band}`);
+  }
+  if (f?.hq_country && NA_COUNTRIES.has(f.hq_country)) {
+    icp += 5;
+    notes.push("ICP +5: North America");
+  }
+  if (!f) {
     notes.push("ICP +0: no firmographics");
   }
   icp = clamp(icp, 0, WEIGHTS.icp_fit_max);
 
-  // --- Timing ---
+  // --- Timing (0–30) ---
   let timing = 0;
   if (record.posting.posted_at) {
     const ageDays = daysBetween(new Date(record.posting.posted_at), new Date());
     if (ageDays <= 14) {
       timing += 20;
-      notes.push(`Timing +20: posting ${ageDays}d old`);
+      notes.push(`Timing +20: seed ${ageDays}d old`);
     } else if (ageDays <= 30) {
       timing += 10;
-      notes.push(`Timing +10: posting ${ageDays}d old`);
+      notes.push(`Timing +10: seed ${ageDays}d old`);
     }
   }
-  if (f?.last_funding_at) {
-    const fundingAgeDays = daysBetween(new Date(f.last_funding_at), new Date());
-    if (fundingAgeDays <= 180) {
-      timing += 10;
-      notes.push(`Timing +10: funded ${fundingAgeDays}d ago`);
-    }
+  const fact = record.research?.reference_fact ?? "";
+  if (fact && EXPANSION_RE.test(fact)) {
+    timing += 10;
+    notes.push("Timing +10: expansion mentioned in reference fact");
   }
   timing = clamp(timing, 0, WEIGHTS.timing_max);
 
-  // --- Signal strength ---
+  // --- Signal strength (0–30) ---
   let signal = 0;
-  const maturity = record.research?.stack_maturity;
-  if (maturity === "greenfield" || maturity === "piecemeal") {
+  const maturity = record.research?.workforce_planning_maturity;
+  if (maturity && LOW_MATURITY.has(maturity)) {
     signal += 15;
-    notes.push(`Signal +15: stack maturity ${maturity}`);
-  } else if (maturity === "maturing") {
+    notes.push(`Signal +15: workforce planning ${maturity}`);
+  }
+  if (record.labor_tech_stack && !record.labor_tech_stack.wfm) {
     signal += 8;
-    notes.push("Signal +8: stack maturing");
+    notes.push("Signal +8: no WFM platform detected");
+  }
+  if (f?.data_analytics_investment && f.data_analytics_investment !== "none") {
+    signal += 4;
+    notes.push(`Signal +4: analytics investment ${f.data_analytics_investment}`);
   }
   if (record.person) {
-    signal += 10;
-    notes.push("Signal +10: champion person resolved");
-  }
-  if (record.research) {
-    signal += 5;
-    notes.push("Signal +5: research brief grounded");
+    signal += 3;
+    notes.push("Signal +3: champion person resolved");
   }
   signal = clamp(signal, 0, WEIGHTS.signal_strength_max);
 

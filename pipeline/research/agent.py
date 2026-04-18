@@ -59,7 +59,9 @@ def research(record: PipelineRecord, *, fetch_pages: bool = False) -> tuple[Rese
             "posting_url": str(record.posting.source_url),
             "posting_text": record.posting.raw_text[:8000],
             "firmographics": record.firmographics.model_dump() if record.firmographics else None,
-            "tech_stack": record.tech_stack.model_dump() if record.tech_stack else None,
+            "labor_tech_stack": (
+                record.labor_tech_stack.model_dump() if record.labor_tech_stack else None
+            ),
             "allowed_source_urls": [s["url"] for s in sources],
         },
         default=str,
@@ -103,8 +105,10 @@ def _collect_sources(record: PipelineRecord, *, fetch_pages: bool) -> list[dict[
     ]
     if record.firmographics and record.firmographics.source_url:
         sources.append({"url": str(record.firmographics.source_url), "kind": "firmographics"})
-    if record.tech_stack and record.tech_stack.source_url:
-        sources.append({"url": str(record.tech_stack.source_url), "kind": "tech_stack"})
+    if record.labor_tech_stack and record.labor_tech_stack.source_url:
+        sources.append(
+            {"url": str(record.labor_tech_stack.source_url), "kind": "labor_tech_stack"}
+        )
 
     if fetch_pages:
         # TODO(v1): fetch homepage + recent blog posts under the company domain

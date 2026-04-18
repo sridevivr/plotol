@@ -2,8 +2,8 @@
 //
 // For each record:
 //   1. firmographics: try Apollo, fall back to Ocean.io.
-//   2. tech stack: BuiltWith.
-//   3. person: Proxycurl, scoped to the role title from the posting.
+//   2. labor-tech stack: BuiltWith (WFM / HRIS / scheduling).
+//   3. person: Proxycurl, scoped to the workforce-planning champion.
 //
 // Each call writes a TraceEntry. Misses do not throw — they degrade the
 // record's confidence and downstream stages decide whether to proceed.
@@ -14,7 +14,8 @@ import { oceanioEnrich } from "./sources/oceanio.js";
 import { builtwithEnrich } from "./sources/builtwith.js";
 import { proxycurlFindLeader } from "./sources/proxycurl.js";
 
-const HEAD_OF_DATA = /head of data|vp,?\s+data|director,?\s+(of\s+)?data/i;
+const CHAMPION_TITLE =
+  /director,?\s+(of\s+)?workforce\s+planning|vp,?\s+workforce\s+planning|head\s+of\s+workforce\s+planning/i;
 
 export async function enrichRecord(record: PipelineRecord): Promise<PipelineRecord> {
   const domain = record.posting.company_domain;
@@ -51,26 +52,26 @@ export async function enrichRecord(record: PipelineRecord): Promise<PipelineReco
     }
   }
 
-  // 2. tech stack
+  // 2. labor-tech stack
   const stackStarted = Date.now();
   const stack = await builtwithEnrich(domain);
-  if (stack.ok && stack.tech_stack) {
-    record.tech_stack = stack.tech_stack;
+  if (stack.ok && stack.labor_tech_stack) {
+    record.labor_tech_stack = stack.labor_tech_stack;
     record.trace.push(
-      newTraceEntry("enrichment.tech_stack", "ok", "builtwith", {
+      newTraceEntry("enrichment.labor_tech_stack", "ok", "builtwith", {
         duration_ms: Date.now() - stackStarted,
         cost_usd: stack.cost_usd,
       }),
     );
   } else {
     record.trace.push(
-      newTraceEntry("enrichment.tech_stack", "skipped", stack.reason ?? "miss"),
+      newTraceEntry("enrichment.labor_tech_stack", "skipped", stack.reason ?? "miss"),
     );
   }
 
   // 3. person
   const personStarted = Date.now();
-  const person = await proxycurlFindLeader(domain, HEAD_OF_DATA);
+  const person = await proxycurlFindLeader(domain, CHAMPION_TITLE);
   if (person.ok && person.person) {
     record.person = person.person;
     record.trace.push(

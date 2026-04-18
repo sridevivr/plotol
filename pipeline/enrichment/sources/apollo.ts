@@ -23,11 +23,6 @@ export async function apolloEnrich(domain: string): Promise<ApolloEnrichResult> 
     ok: true,
     firmographics: {
       domain,
-      legal_name: undefined,
-      industry: undefined,
-      headcount: undefined,
-      headcount_band: undefined,
-      funding_stage: "unknown",
       source: "apollo",
     },
     cost_usd: 0,

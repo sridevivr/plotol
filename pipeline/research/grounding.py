@@ -16,7 +16,7 @@ from .types import ResearchBrief
 def enforce_grounding(brief: ResearchBrief, *, allowed_urls: set[str]) -> ResearchBrief | None:
     urls = {
         str(brief.pain_thesis_source_url),
-        str(brief.stack_maturity_source_url),
+        str(brief.workforce_planning_maturity_source_url),
         str(brief.reference_fact_source_url),
     }
     if not urls.issubset(allowed_urls):

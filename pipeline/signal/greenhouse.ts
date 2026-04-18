@@ -3,20 +3,25 @@
 // Greenhouse exposes a public JSON board per company at
 // https://boards-api.greenhouse.io/v1/boards/<board_token>/jobs?content=true
 // No auth required. We pull all open jobs for the configured boards, filter
-// for senior data leadership titles, and emit one PipelineRecord per match.
+// for workforce-planning and multi-location ops titles, and emit one
+// PipelineRecord per match.
 //
 // Boards to scan come from the GREENHOUSE_BOARDS env var (comma-separated
-// board tokens). For v1 we ship a small curated default list of Series A/B
-// SaaS companies known to use Greenhouse.
+// board tokens). Greenhouse is a thin coverage source for this ICP — most
+// $500M+ enterprises use Workday/iCIMS — so EDGAR is the primary signal
+// source. See pipeline/signal/edgar.ts.
 
 import { request } from "undici";
 import { JobPosting, PipelineRecord, newTraceEntry } from "../types.js";
 
 const TARGET_TITLES = [
-  /head of data\b/i,
-  /vp,?\s+data\b/i,
-  /vice president,?\s+data\b/i,
-  /director,?\s+(of\s+)?data\b/i,
+  /director,?\s+(of\s+)?workforce\s+planning\b/i,
+  /vp,?\s+workforce\s+planning\b/i,
+  /head\s+of\s+workforce\s+planning\b/i,
+  /director,?\s+(of\s+)?labor\s+(planning|analytics|strategy)\b/i,
+  /director,?\s+(of\s+)?(store|retail|field)\s+operations\b/i,
+  /director,?\s+(of\s+)?real\s+estate\b/i,
+  /head\s+of\s+talent\s+acquisition\b/i,
 ];
 
 interface GreenhouseJob {

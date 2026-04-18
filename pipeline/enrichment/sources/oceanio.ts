@@ -20,7 +20,6 @@ export async function oceanioEnrich(domain: string): Promise<OceanioEnrichResult
     ok: true,
     firmographics: {
       domain,
-      funding_stage: "unknown",
       source: "oceanio",
     },
     cost_usd: 0,

@@ -67,7 +67,7 @@ function renderRecord(r: PipelineRecord, rank: number): string {
   const why = r.research
     ? `<div class="why"><strong>Why now:</strong> ${escape(r.research.pain_thesis)}<br>
        <strong>Reference fact:</strong> ${escape(r.research.reference_fact)} (<a href="${r.research.reference_fact_source_url}">source</a>)<br>
-       <strong>Stack maturity:</strong> ${r.research.stack_maturity}</div>`
+       <strong>Workforce planning maturity:</strong> ${r.research.workforce_planning_maturity}</div>`
     : `<div class="why"><em>Research not available — record advanced on signal + firmographics only.</em></div>`;
 
   const draft = r.draft
@@ -78,10 +78,24 @@ function renderRecord(r: PipelineRecord, rank: number): string {
        <pre>${escape(r.draft.linkedin_note)}</pre>`
     : `<p><em>No draft available.</em></p>`;
 
+  const f = r.firmographics;
+  const firmoMeta =
+    f && (f.sector || f.location_count || f.revenue_band)
+      ? `<div class="breakdown">${[
+          f.sector,
+          typeof f.location_count === "number" ? `${f.location_count} locations` : null,
+          f.revenue_band,
+        ]
+          .filter(Boolean)
+          .map((s) => escape(String(s)))
+          .join(" · ")}</div>`
+      : "";
+
   return `<article class="card">
   <span class="score">${score}/100</span>
   <h2>${rank}. ${escape(r.posting.company_name)} — ${escape(r.posting.role_title)}</h2>
   <div class="meta"><a href="${r.posting.source_url}">${escape(r.posting.source_url)}</a> · ${escape(r.posting.role_location ?? "")}</div>
+  ${firmoMeta}
   <div class="breakdown">${breakdown}</div>
   ${why}
   ${draft}

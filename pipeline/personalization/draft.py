@@ -32,6 +32,8 @@ def draft(record: PipelineRecord) -> tuple[Draft | None, float]:
         {
             "company_name": record.posting.company_name,
             "role_title": record.posting.role_title,
+            "sector": record.firmographics.sector if record.firmographics else None,
+            "location_count": record.firmographics.location_count if record.firmographics else None,
             "person": record.person.model_dump() if record.person else None,
             "brief": record.research.model_dump(mode="json"),
         },
@@ -73,7 +75,9 @@ _TOKEN = re.compile(r"[a-z0-9]{4,}")
 
 
 def _facts_tokens(brief: ResearchBrief) -> set[str]:
-    blob = " ".join([brief.pain_thesis, brief.reference_fact, brief.stack_maturity]).lower()
+    blob = " ".join(
+        [brief.pain_thesis, brief.reference_fact, brief.workforce_planning_maturity]
+    ).lower()
     return set(_TOKEN.findall(blob))
 
 

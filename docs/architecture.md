@@ -19,22 +19,39 @@ you can re-run any stage from a checkpoint.
 
 ### 1. Signal (`pipeline/signal/`)
 
-Pulls open job postings from Greenhouse and Lever public boards. Filters to
-roles matching `Head of Data | VP Data | Director of Data`. Emits one record
-per matched posting, deduplicated by company domain.
+Three sources run in parallel and dedupe by company domain (records with an
+unresolved domain are deduped by record id until enrichment fills the domain
+in):
 
-Why public job boards: zero auth, fully replayable, and a clean fit signal for
-the chosen play.
+- **SEC EDGAR** (primary) — queries the free full-text-search endpoint for
+  recent 10-K / 10-Q filings that mention expansion or workforce / labor
+  availability, filtered to SIC code buckets for retail (5200–5990),
+  manufacturing (2000–3999), and hospitality (7000–7011, 5812). Authoritative
+  for the ICP: public companies above the revenue threshold, with a
+  disclosure that directly indicates the buying moment.
+- **Greenhouse** + **Lever** (thin coverage) — filters boards for titles in
+  the `Director of Workforce Planning | VP Workforce Planning | Head of
+  Workforce Planning | Director of Labor Planning/Analytics/Strategy | Director
+  of Store/Retail/Field Operations | Director of Real Estate | Head of Talent
+  Acquisition` set. Most $500M+ enterprises use Workday/iCIMS so the yield is
+  low, but the long-tail boards that do run on Greenhouse/Lever deliver
+  high-intent hits when they appear.
+
+Why public disclosures + job boards: zero auth, fully replayable, and the
+cleanest public proxy for "a multi-location operator is actively feeling
+labor-planning pain."
 
 ### 2. Enrichment waterfall (`pipeline/enrichment/`)
 
 Orchestrates three providers in a defined order:
 
-1. **Apollo** (preferred) → firmographics, headcount, funding stage. Falls back
-   to **Ocean.io** if Apollo misses or returns low confidence.
-2. **BuiltWith** → tech stack signal (data warehouse, BI tool, CDP).
-3. **Proxycurl** → resolve the specific Head-of-Data person (when present on
-   LinkedIn).
+1. **Apollo** (preferred) → firmographics, headcount, revenue band, HQ
+   country. Falls back to **Ocean.io** if Apollo misses or returns low
+   confidence.
+2. **BuiltWith** → labor-tech stack signal (WFM platform such as Kronos/UKG
+   or Legion, HRIS such as Workday or ADP, scheduling, time & attendance).
+3. **Proxycurl** → resolve the specific Director of Workforce Planning (or
+   adjacent champion) when present on LinkedIn.
 
 The waterfall emits a per-record `enrichment_trace` listing which sources hit,
 which fell back, which were skipped, and the latency + cost of each call. This
@@ -46,13 +63,16 @@ across non-overlapping fields).
 
 ### 3. Research agent (`pipeline/research/`)
 
-A Python service that calls Claude. Inputs: the job posting text + the
-company's website + the most recent 3 blog posts. Outputs a strict
+A Python service that calls Claude. Inputs: the seed text (job posting or
+EDGAR excerpt) plus the company's public context. Outputs a strict
 `ResearchBrief`:
 
-- `pain_thesis`: one sentence on what the new hire is meant to solve.
-- `stack_maturity`: enum (`greenfield | piecemeal | maturing | mature`).
-- `reference_fact`: a single concrete, citation-ready fact to use in outreach.
+- `pain_thesis`: one sentence on the specific labor / ops pain the company
+  is about to solve.
+- `workforce_planning_maturity`: enum
+  (`manual | spreadsheets | point_tools | enterprise_wfm | in_house_science`).
+- `reference_fact`: a single concrete, citation-ready fact — ideally naming
+  a number, a location, a named system, or a named challenge.
 
 Every field carries a `source_url`. The agent is instructed to drop any field
 it cannot ground. A post-call validator enforces the same rule and discards
@@ -65,10 +85,13 @@ version-controlled. Prompt caching is used on the system prompt.
 
 A transparent, additive 0–100 rubric. Components:
 
-- ICP fit (0–40): industry, headcount band, funding stage.
-- Timing (0–30): job-post age, funding recency.
-- Buying signal strength (0–30): stack maturity, role seniority, hiring manager
-  is a champion-shaped persona.
+- ICP fit (0–40): sector in `{retail_ecommerce, manufacturing, hospitality}`,
+  `location_count ≥ 20`, revenue band ≥ $500M, HQ in North America.
+- Timing (0–30): seed age, plus a reference-fact regex for expansion /
+  new-site / new-facility mentions.
+- Buying signal strength (0–30): low `workforce_planning_maturity`, absence
+  of a detected WFM platform, presence of a data-analytics-investment signal,
+  champion person resolved.
 
 The full breakdown rides with each record. Weights are constants in
 `pipeline/scoring/rubric.ts` and changes show up in PRs.
@@ -76,9 +99,19 @@ The full breakdown rides with each record. Weights are constants in
 ### 5. Personalization (`pipeline/personalization/`)
 
 A second Claude call (Sonnet) that produces a 3-line email and a LinkedIn
-connection note. Hard rule, enforced by a post-call validator: every sentence
-must reference a fact present in the `ResearchBrief`. Sentences without a
-matching grounded fact are stripped.
+connection note. Two ICP-specific controls in `prompts/personalization_system.md`:
+
+- **Persona lock**: the default recipient is the Director of Workforce
+  Planning (Champion). The CTA is locked to "worth 20 minutes to compare
+  notes on [the platform]?"
+- **Sector framing**: the prompt carries three vocabulary blocks
+  (retail_ecommerce / manufacturing / hospitality) and the model selects the
+  one matching `firmographics.sector`. Sector framing supplies vocabulary,
+  not claims.
+
+Hard rule, enforced by a post-call validator: every sentence must reference a
+fact present in the `ResearchBrief`. Sentences without a matching grounded
+fact are stripped.
 
 ### 6. CRM push (`pipeline/crm/`)
 

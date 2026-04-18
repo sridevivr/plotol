@@ -14,17 +14,26 @@ opinionated, narrow, and shipped — not a framework.
 
 ## The play
 
-The reference pipeline targets one specific signal:
+The reference pipeline targets one specific ICP: a labor-intelligence
+product selling into multi-location operators.
 
-> **Series A–B B2B SaaS companies that just posted a "Head of Data / VP Data /
-> Director of Data" role on Greenhouse or Lever.**
+> **$500M+ North American retail / manufacturing / hospitality companies with
+> 20+ physical locations, surfaced from SEC 10-K / 10-Q mentions of expansion
+> and staffing challenges, and from public job postings for workforce-planning
+> and multi-location ops roles.**
 
-Why this signal: a first senior data hire is a high-intent moment. Budget has
-been allocated, the data stack is about to be assessed, and the buyer profile
-is identifiable from a public posting. It is small enough to build well and
-sharp enough to demonstrate every stage of the pipeline doing real work.
+The default drafted recipient is the **Director of Workforce Planning** (the
+Champion persona — spreadsheet-forecasting pain, can't quantify labor risk
+for new locations, wants data to justify hiring strategy to leadership). The
+offer is a 20-minute peer conversation about a labor forecasting & planning
+platform.
 
-You can swap the signal — that is the point of the modular layout — but the
+Why this signal: public-company disclosures and job openings for workforce-
+planning roles are the clearest public proxies for "a multi-location operator
+is actively feeling labor-planning pain." It's small enough to build well and
+sharp enough to exercise every stage of the pipeline doing real work.
+
+You can swap the ICP — that is the point of the modular layout — but the
 default play is the one above and the weekly report is generated against it.
 
 ---
@@ -33,12 +42,13 @@ default play is the one above and the weekly report is generated against it.
 
 ```
               ┌──────────────────┐
-              │  signal sources  │  Greenhouse + Lever job boards
+              │  signal sources  │  SEC EDGAR (10-K/10-Q) + Greenhouse + Lever
               └────────┬─────────┘
                        │
               ┌────────▼─────────┐
-              │  waterfall       │  Apollo / Ocean.io → BuiltWith → Proxycurl
-              │  enrichment      │  with fallback + per-source trace
+              │  waterfall       │  Apollo / Ocean.io → BuiltWith (WFM/HRIS)
+              │  enrichment      │    → Proxycurl (Director of Workforce Planning)
+              │                  │  with fallback + per-source trace
               └────────┬─────────┘
                        │
               ┌────────▼─────────┐
@@ -52,7 +62,7 @@ default play is the one above and the weekly report is generated against it.
                        │
               ┌────────▼─────────┐
               │  personalization │  3-line email + LinkedIn note,
-              │  (Python)        │  every line tied to a grounded fact
+              │  (Python)        │  sector-aware framing, grounded facts
               └────────┬─────────┘
                        │
               ┌────────▼─────────┐
@@ -76,7 +86,7 @@ can be diffed and reviewed.
 
 ```
 pipeline/
-  signal/             ingestion from Greenhouse + Lever
+  signal/             ingestion from SEC EDGAR, Greenhouse, Lever
   enrichment/         waterfall orchestration, one file per provider
   research/           Claude research agent (Python) with grounding
   scoring/            transparent rubric
@@ -133,7 +143,9 @@ into `reports/`.
 
 **v1 (in scope, ~2 weeks):**
 
-- Greenhouse + Lever signal ingestion
+- SEC EDGAR 10-K/10-Q full-text scanner (primary signal source)
+- Greenhouse + Lever ingestion with workforce-planning title filters (thin
+  coverage source)
 - 3-source waterfall (Apollo or Ocean.io, BuiltWith, Proxycurl)
 - Claude research agent with source-grounded extraction
 - Transparent scoring rubric
