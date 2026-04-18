@@ -1,0 +1,33 @@
+{
+  "name": "signalforge.weekly",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            { "field": "cronExpression", "expression": "0 13 * * 1" }
+          ]
+        }
+      },
+      "name": "Weekly Cron (Mon 13:00 UTC)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "command": "npm run pipeline:run"
+      },
+      "name": "Run pipeline",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [500, 300]
+    }
+  ],
+  "connections": {
+    "Weekly Cron (Mon 13:00 UTC)": {
+      "main": [[{ "node": "Run pipeline", "type": "main", "index": 0 }]]
+    }
+  },
+  "_signalforge_note": "Placeholder workflow. The v1 implementation will replace the single executeCommand node with explicit signal/enrichment/research/personalization/crm nodes for visibility in the n8n UI."
+}

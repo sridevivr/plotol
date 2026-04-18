@@ -1,0 +1,32 @@
+# env / secrets
+.env
+.env.*
+!.env.example
+
+# node
+node_modules/
+dist/
+*.tsbuildinfo
+.next/
+
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# generated reports (kept out of git; regenerated weekly)
+reports/generated/
+
+# n8n local data
+n8n/data/
+
+# editors / os
+.DS_Store
+.idea/
+.vscode/
+*.swp

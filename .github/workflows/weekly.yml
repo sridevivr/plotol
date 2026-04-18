@@ -1,0 +1,58 @@
+name: weekly-report
+
+on:
+  schedule:
+    # Mondays 13:00 UTC
+    - cron: "0 13 * * 1"
+  workflow_dispatch:
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - run: npm ci
+
+      - run: pip install -e .
+
+      - name: Start Python service
+        run: |
+          python -m pipeline.server &
+          for i in $(seq 1 20); do
+            if curl -fsS http://localhost:8000/healthz > /dev/null; then
+              echo "ready"; break
+            fi
+            sleep 1
+          done
+
+      - name: Run pipeline
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GREENHOUSE_BOARDS: ${{ vars.GREENHOUSE_BOARDS }}
+          LEVER_BOARDS: ${{ vars.LEVER_BOARDS }}
+          APOLLO_API_KEY: ${{ secrets.APOLLO_API_KEY }}
+          OCEANIO_API_KEY: ${{ secrets.OCEANIO_API_KEY }}
+          BUILTWITH_API_KEY: ${{ secrets.BUILTWITH_API_KEY }}
+          PROXYCURL_API_KEY: ${{ secrets.PROXYCURL_API_KEY }}
+          HUBSPOT_ACCESS_TOKEN: ${{ secrets.HUBSPOT_ACCESS_TOKEN }}
+        run: npm run pipeline:run
+
+      - name: Upload report artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: weekly-report
+          path: reports/generated/
+          if-no-files-found: warn

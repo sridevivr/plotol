@@ -1,0 +1,28 @@
+{
+  "name": "signalforge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "An open-source, end-to-end GTM engine: signal -> enrichment -> AI research -> scoring -> personalization -> CRM -> weekly report.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "pipeline:run": "tsx pipeline/run.ts",
+    "report:build": "tsx reports/build.ts",
+    "lint": "echo 'lint not configured yet'"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "undici": "^6.19.8",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.10",
+    "tsx": "^4.16.2",
+    "typescript": "^5.5.3"
+  }
+}

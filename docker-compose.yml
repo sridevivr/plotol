@@ -1,0 +1,27 @@
+services:
+  n8n:
+    image: n8nio/n8n:latest
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_HOST=localhost
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - GENERIC_TIMEZONE=UTC
+      - N8N_RUNNERS_ENABLED=true
+      - WEBHOOK_URL=http://localhost:5678/
+    volumes:
+      - ./n8n/data:/home/node/.n8n
+      - ./n8n/workflows:/workflows:ro
+
+  signalforge-py:
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    command: ["python", "-m", "pipeline.server"]
