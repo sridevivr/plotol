@@ -12,12 +12,24 @@ import { PipelineRecord, newTraceEntry } from "../types.js";
 import { apolloEnrich } from "./sources/apollo.js";
 import { oceanioEnrich } from "./sources/oceanio.js";
 import { builtwithEnrich } from "./sources/builtwith.js";
-import { proxycurlFindLeader } from "./sources/proxycurl.js";
+import { ProxycurlBudget, proxycurlFindLeader } from "./sources/proxycurl.js";
 
-const CHAMPION_TITLE =
-  /director,?\s+(of\s+)?workforce\s+planning|vp,?\s+workforce\s+planning|head\s+of\s+workforce\s+planning/i;
+// Champion role candidates, in priority order. Proxycurl takes literal role
+// strings (not regex). We try them top-down and stop on the first match.
+const CHAMPION_ROLES = [
+  "Director of Workforce Planning",
+  "VP of Workforce Planning",
+  "Head of Workforce Planning",
+  "Director of Labor Planning",
+  "Director of Store Operations",
+  "Director of Retail Operations",
+  "Head of Talent Acquisition",
+];
 
-export async function enrichRecord(record: PipelineRecord): Promise<PipelineRecord> {
+export async function enrichRecord(
+  record: PipelineRecord,
+  budget?: ProxycurlBudget,
+): Promise<PipelineRecord> {
   const domain = record.posting.company_domain;
 
   // 1. firmographics with fallback
@@ -71,18 +83,33 @@ export async function enrichRecord(record: PipelineRecord): Promise<PipelineReco
 
   // 3. person
   const personStarted = Date.now();
-  const person = await proxycurlFindLeader(domain, CHAMPION_TITLE);
+  const person = await proxycurlFindLeader({
+    company_name: record.posting.company_name,
+    domain,
+    roles: CHAMPION_ROLES,
+    budget,
+  });
   if (person.ok && person.person) {
     record.person = person.person;
     record.trace.push(
-      newTraceEntry("enrichment.person", "ok", "proxycurl", {
-        duration_ms: Date.now() - personStarted,
-        cost_usd: person.cost_usd,
-      }),
+      newTraceEntry(
+        "enrichment.person",
+        "ok",
+        `proxycurl tried=${person.roles_tried ?? "?"}`,
+        {
+          duration_ms: Date.now() - personStarted,
+          cost_usd: person.cost_usd,
+        },
+      ),
     );
   } else {
     record.trace.push(
-      newTraceEntry("enrichment.person", "skipped", person.reason ?? "miss"),
+      newTraceEntry(
+        "enrichment.person",
+        "skipped",
+        `${person.reason ?? "miss"} (tried=${person.roles_tried ?? 0})`,
+        { cost_usd: person.cost_usd },
+      ),
     );
   }
 
@@ -94,9 +121,17 @@ export async function enrichAll(records: PipelineRecord[]): Promise<PipelineReco
   const concurrency = 5;
   const out: PipelineRecord[] = [];
   let i = 0;
+
+  // Per-run Proxycurl call budget. Shared across every record so a single
+  // pipeline run cannot exceed PROXYCURL_MAX_CALLS HTTP calls regardless of
+  // how many records came out of signal.
+  const budget: ProxycurlBudget = {
+    remaining: Number(process.env.PROXYCURL_MAX_CALLS ?? 50),
+  };
+
   while (i < records.length) {
     const batch = records.slice(i, i + concurrency);
-    const enriched = await Promise.all(batch.map(enrichRecord));
+    const enriched = await Promise.all(batch.map((r) => enrichRecord(r, budget)));
     out.push(...enriched);
     i += concurrency;
   }

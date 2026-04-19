@@ -51,7 +51,13 @@ Orchestrates three providers in a defined order:
 2. **BuiltWith** → labor-tech stack signal (WFM platform such as Kronos/UKG
    or Legion, HRIS such as Workday or ADP, scheduling, time & attendance).
 3. **Proxycurl** → resolve the specific Director of Workforce Planning (or
-   adjacent champion) when present on LinkedIn.
+   adjacent champion) when present on LinkedIn. Calls the
+   `find/company/role/` endpoint with `enrich_profile=enrich`, iterating a
+   priority-ordered list of role strings (Director of Workforce Planning →
+   VP Workforce Planning → Head of Workforce Planning → labor planning →
+   store/retail ops → talent acquisition) and stopping on the first match.
+   A per-run `PROXYCURL_MAX_CALLS` budget (default 50) caps total HTTP
+   calls so a single ingestion can't burn the credit pool.
 
 The waterfall emits a per-record `enrichment_trace` listing which sources hit,
 which fell back, which were skipped, and the latency + cost of each call. This
